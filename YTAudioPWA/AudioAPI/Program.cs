@@ -70,5 +70,20 @@ app.MapGet("/api/search", async (string q) => await runPythonEngine("search", q)
 // Endpoint 4: Mengambil konten musik rekomendasi untuk halaman beranda (Fitur Baru)
 app.MapGet("/api/home", async () => await runPythonEngine("home", "default_feed"));
 
+// Endpoint Baru: Proxy Audio untuk Menjebol IP-Lock YouTube
+app.MapGet("/api/audio-proxy", async (string url, HttpContext context) =>
+{
+    using var httpClient = new HttpClient();
+    
+    // Ambil data stream langsung dari server Google menggunakan hak akses IP AWS
+    var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+    
+    var contentType = response.Content.Headers.ContentType?.MediaType ?? "audio/mp4";
+    var stream = await response.Content.ReadAsStreamAsync();
+    
+    // Salurkan langsung bytes audionya ke frontend
+    return Results.Stream(stream, contentType);
+});
+
 // Ubah dari app.Run(); menjadi seperti ini:
 app.Run("http://0.0.0.0:5000");
