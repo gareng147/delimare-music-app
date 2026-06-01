@@ -72,26 +72,38 @@ app.MapGet("/api/home", async () => await runPythonEngine("home", "default_feed"
 
 // Endpoint Baru: Proxy Audio untuk Menjebol IP-Lock YouTube
 // Endpoint Proxy Audio Versi Upgrade (Anti-Blokir & Mendukung Buffering/Seeking)
-app.MapGet("/api/audio-proxy", async (string url, HttpContext context) =>
+app.MapGet("/api/audio-proxy", async (string videoUrl) =>
 {
-    var httpClient = new HttpClient();
-    
-    // 1. WAJIB: Palsukan User-Agent agar YouTube mengira ini browser manusia, bukan bot AWS
-    httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
-    // 2. Operkan permintaan "Range" dari HP/Browser kamu langsung ke YouTube
-    var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
-    if (context.Request.Headers.TryGetValue("Range", out var rangeHeader))
+    try
     {
-        requestMessage.Headers.TryAddWithoutValidation("Range", rangeHeader.ToString());
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "python3",
+            Arguments = $"extractor.py stream \"{videoUrl}\"",
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = System.Diagnostics.Process.Start(psi);
+        string pythonOutput = await process.StandardOutput.ReadToEndAsync();
+        await process.WaitForExitAsync();
+
+        var json = System.Text.Json.JsonDocument.Parse(pythonOutput);
+        if (!json.RootElement.GetProperty("success").GetBoolean())
+        {
+            return Results.BadRequest("Gagal mengekstrak audio dari proxy");
+        }
+
+        string realStreamUrl = json.RootElement.GetProperty("stream_url").GetString();
+        
+        // JALUR KILAT: Alihkan browser langsung ke CDN HTTPS Invidious yang aman dan mendukung buffering penuh
+        return Results.Redirect(realStreamUrl);
     }
-
-    var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead);
-    var stream = await response.Content.ReadAsStreamAsync();
-    var contentType = response.Content.Headers.ContentType?.MediaType ?? "audio/mp4";
-
-    // 3. WAJIB: Aktifkan enableRangeProcessing agar lagu bisa di-skip/forward tanpa macet
-    return Results.Stream(stream, contentType, enableRangeProcessing: true);
+    catch (Exception ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
 });
 
 // Ubah dari app.Run(); menjadi seperti ini:
