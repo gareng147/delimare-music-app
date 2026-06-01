@@ -20,7 +20,13 @@ Func<string, string, Task<IResult>> runPythonEngine = async (mode, url) =>
     if (string.IsNullOrEmpty(url)) return Results.BadRequest(new { error = "URL kosong!" });
 
     var workingDir = Path.Combine(Directory.GetCurrentDirectory(), "PythonEngine");
-    var pythonExe = Path.Combine(workingDir, "env", "Scripts", "python.exe");
+    
+    // PERBAIKAN: Deteksi otomatis apakah server menggunakan Windows atau Linux
+    var isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+    var pythonExe = isWindows 
+        ? Path.Combine(workingDir, "env", "Scripts", "python.exe")
+        : Path.Combine(workingDir, "env", "bin", "python"); // Jalur untuk Linux Server
+
     var scriptPath = Path.Combine(workingDir, "extractor.py");
 
     // PERBAIKAN: Pastikan scriptPath dimasukkan sebagai argumen pertama Python
