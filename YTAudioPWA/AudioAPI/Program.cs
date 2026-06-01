@@ -72,18 +72,14 @@ app.MapGet("/api/home", async () => await runPythonEngine("home", "default_feed"
 
 // Endpoint Baru: Proxy Audio untuk Menjebol IP-Lock YouTube
 // Endpoint Proxy Audio Versi Upgrade (Anti-Blokir & Mendukung Buffering/Seeking)
-app.MapGet("/api/audio-proxy", async (string videoUrl) =>
+app.MapGet("/api/audio-proxy", async (string videoUrl, HttpContext context) =>
 {
     try
     {
         var psi = new System.Diagnostics.ProcessStartInfo
         {
-            // 1. Tembak Python dari Virtual Environment tempat yt-dlp diinstal
             FileName = "/app/PythonEngine/env/bin/python3",
-            
-            // 2. Arahkan ke file extractor.py yang berada di dalam folder PythonEngine
             Arguments = $"/app/PythonEngine/extractor.py stream \"{videoUrl}\"",
-            
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -96,11 +92,32 @@ app.MapGet("/api/audio-proxy", async (string videoUrl) =>
         var json = System.Text.Json.JsonDocument.Parse(pythonOutput);
         if (!json.RootElement.GetProperty("success").GetBoolean())
         {
-            return Results.BadRequest("Gagal mengekstrak audio dari proxy");
+            return Results.BadRequest("Gagal mengekstrak audio dari YouTube");
         }
 
         string realStreamUrl = json.RootElement.GetProperty("stream_url").GetString();
-        return Results.Redirect(realStreamUrl);
+
+        // SEKARANG KITA STREAMING DATA BINARY LANGSUNG (Bukan Redirect)
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, realStreamUrl);
+        if (context.Request.Headers.TryGetValue("Range", out var rangeHeader))
+        {
+            requestMessage.Headers.TryAddWithoutValidation("Range", rangeHeader.ToString());
+        }
+
+        var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead);
+        
+        if (!response.IsSuccessStatusCode)
+        {
+            return Results.Problem($"YouTube menolak akses direct stream: {(int)response.StatusCode}");
+        }
+
+        var stream = await response.Content.ReadAsStreamAsync();
+        var contentType = response.Content.Headers.ContentType?.MediaType ?? "audio/mp4";
+
+        return Results.Stream(stream, contentType, enableRangeProcessing: true);
     }
     catch (Exception ex)
     {
