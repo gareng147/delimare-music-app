@@ -78,8 +78,12 @@ app.MapGet("/api/audio-proxy", async (string videoUrl) =>
     {
         var psi = new System.Diagnostics.ProcessStartInfo
         {
-            FileName = "python3",
-            Arguments = $"extractor.py stream \"{videoUrl}\"",
+            // 1. Tembak Python dari Virtual Environment tempat yt-dlp diinstal
+            FileName = "/app/PythonEngine/env/bin/python3",
+            
+            // 2. Arahkan ke file extractor.py yang berada di dalam folder PythonEngine
+            Arguments = $"/app/PythonEngine/extractor.py stream \"{videoUrl}\"",
+            
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -96,8 +100,6 @@ app.MapGet("/api/audio-proxy", async (string videoUrl) =>
         }
 
         string realStreamUrl = json.RootElement.GetProperty("stream_url").GetString();
-        
-        // JALUR KILAT: Alihkan browser langsung ke CDN HTTPS Invidious yang aman dan mendukung buffering penuh
         return Results.Redirect(realStreamUrl);
     }
     catch (Exception ex)
