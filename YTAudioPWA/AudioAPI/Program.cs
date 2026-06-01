@@ -14,26 +14,23 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 app.UseCors();
 
-// Fungsi helper untuk menjalankan proses Python
+// Fungsi helper untuk menjalankan proses Python (Beranda, Search, Playlist)
 Func<string, string, Task<IResult>> runPythonEngine = async (mode, url) =>
 {
     if (string.IsNullOrEmpty(url)) return Results.BadRequest(new { error = "URL kosong!" });
 
     var workingDir = Path.Combine(Directory.GetCurrentDirectory(), "PythonEngine");
-    
-    // PERBAIKAN: Deteksi otomatis apakah server menggunakan Windows atau Linux
     var isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
     var pythonExe = isWindows 
         ? Path.Combine(workingDir, "env", "Scripts", "python.exe")
-        : Path.Combine(workingDir, "env", "bin", "python"); // Jalur untuk Linux Server
+        : Path.Combine(workingDir, "env", "bin", "python");
 
     var scriptPath = Path.Combine(workingDir, "extractor.py");
 
-    // PERBAIKAN: Pastikan scriptPath dimasukkan sebagai argumen pertama Python
     var startInfo = new ProcessStartInfo
     {
         FileName = pythonExe,
-        Arguments = $"\"{scriptPath}\" \"{mode}\" \"{url}\"", // <-- Bagian ini sudah diperbaiki
+        Arguments = $"\"{scriptPath}\" \"{mode}\" \"{url}\"",
         RedirectStandardOutput = true,
         RedirectStandardError = true,
         UseShellExecute = false,
@@ -58,38 +55,44 @@ Func<string, string, Task<IResult>> runPythonEngine = async (mode, url) =>
     }
 };
 
-// Endpoint 1: Mengambil stream audio satuan
 app.MapGet("/api/stream", async (string url) => await runPythonEngine("stream", url));
-
-// Endpoint 2: Mengambil daftar lagu dari playlist/mix
 app.MapGet("/api/playlist", async (string url) => await runPythonEngine("playlist", url));
-
-// Endpoint 3: Mencari lagu berdasarkan kata kunci pencarian
 app.MapGet("/api/search", async (string q) => await runPythonEngine("search", q));
-
-// Endpoint 4: Mengambil konten musik rekomendasi untuk halaman beranda (Fitur Baru)
 app.MapGet("/api/home", async () => await runPythonEngine("home", "default_feed"));
 
-// Endpoint Baru: Proxy Audio untuk Menjebol IP-Lock YouTube
-// Endpoint Proxy Audio Versi Upgrade (Anti-Blokir & Mendukung Buffering/Seeking)
+// Endpoint Proxy Audio (Disamakan jalurnya dengan fungsi runPythonEngine di atas)
 app.MapGet("/api/audio-proxy", async (string videoUrl, HttpContext context) =>
 {
     try
     {
-        var psi = new System.Diagnostics.ProcessStartInfo
+        if (string.IsNullOrEmpty(videoUrl)) return Results.BadRequest("URL video kosong!");
+
+        var workingDir = Path.Combine(Directory.GetCurrentDirectory(), "PythonEngine");
+        var isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+        var pythonExe = isWindows 
+            ? Path.Combine(workingDir, "env", "Scripts", "python.exe")
+            : Path.Combine(workingDir, "env", "bin", "python");
+
+        var scriptPath = Path.Combine(workingDir, "extractor.py");
+
+        var psi = new ProcessStartInfo
         {
-            FileName = "/app/PythonEngine/env/bin/python3",
-            Arguments = $"/app/PythonEngine/extractor.py stream \"{videoUrl}\"",
+            FileName = pythonExe,
+            Arguments = $"\"{scriptPath}\" \"stream\" \"{videoUrl}\"",
             RedirectStandardOutput = true,
+            RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            WorkingDirectory = workingDir
         };
 
-        using var process = System.Diagnostics.Process.Start(psi);
+        using var process = Process.Start(psi);
+        if (process == null) return Results.Problem("Gagal menjalankan engine Python.");
+
         string pythonOutput = await process.StandardOutput.ReadToEndAsync();
         await process.WaitForExitAsync();
 
-        var json = System.Text.Json.JsonDocument.Parse(pythonOutput);
+        var json = JsonDocument.Parse(pythonOutput);
         if (!json.RootElement.GetProperty("success").GetBoolean())
         {
             return Results.BadRequest("Gagal mengekstrak audio dari YouTube");
@@ -97,7 +100,6 @@ app.MapGet("/api/audio-proxy", async (string videoUrl, HttpContext context) =>
 
         string realStreamUrl = json.RootElement.GetProperty("stream_url").GetString();
 
-        // SEKARANG KITA STREAMING DATA BINARY LANGSUNG (Bukan Redirect)
         using var httpClient = new HttpClient();
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
@@ -121,9 +123,8 @@ app.MapGet("/api/audio-proxy", async (string videoUrl, HttpContext context) =>
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(ex.Message);
+        return Results.BadRequest($"Proxy Error: {ex.Message}");
     }
 });
 
-// Ubah dari app.Run(); menjadi seperti ini:
 app.Run("http://0.0.0.0:5000");
