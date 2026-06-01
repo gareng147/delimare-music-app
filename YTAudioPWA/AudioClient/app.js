@@ -1,4 +1,5 @@
-const BASE_API = "https://b1ea4cd88f13a8.lhr.life"; // Sesuaikan Port Backend C# Anda
+// Gunakan IP AWS kamu yang abadi (tanpa terowongan lagi)
+const BASE_API = "http://52.64.244.129:5000"; // Sesuaikan Port Backend C# Anda
 
 let trackQueue = [];
 let currentIndex = -1;
