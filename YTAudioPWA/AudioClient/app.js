@@ -103,32 +103,18 @@ document.getElementById('searchBtn').addEventListener('click', async () => {
 });
 
 // 3. LOGIKA INTI PEMUTARAN & AUTOPLAY REKOMENDASI PINTAR
-async function playTrack() {
-    if (currentIndex < 0 || currentIndex >= trackQueue.length) return;
-
-    const track = trackQueue[currentIndex];
-    statusDiv.innerText = `Mengambil stream: ${track.title}...`;
-    updateHighlight();
-
-    try {
-        const res = await fetch(`${BASE_API}/api/stream?url=${encodeURIComponent(track.url)}`);
-        const data = await res.json();
-
-        if (data.success) {
-            statusDiv.innerHTML = `<strong>Memutar:</strong> ${data.title}`;
-            audioPlayer.src = data.stream_url;
-            audioPlayer.play();
-
-            // KUNCI UTAMA: Jika ini adalah lagu tunggal (atau lagu terakhir di list pencarian), 
-            // Ambil "related_videos" dari Python dan suntikkan ke antrean selanjutnya!
-            if (currentIndex === trackQueue.length - 1 && data.related_videos && data.related_videos.length > 0) {
-                trackQueue = trackQueue.concat(data.related_videos);
-                renderListView(); // Perbarui daftar di bawah agar user melihat rekomendasi berikutnya
-            }
-        } else {
-            statusDiv.innerText = "Gagal memutar lagu ini.";
-        }
-    } catch { statusDiv.innerText = "Eror koneksi stream."; }
+function playTrack(trackUrl, title) {
+    const audioPlayer = document.getElementById('audioPlayer');
+    const statusDiv = document.getElementById('status');
+    
+    statusDiv.innerHTML = `<strong>Memutar:</strong> ${title || 'Memuat lagu...'}`;
+    
+    // Pastikan menembak ke endpoint proxy dengan parameter videoUrl
+    audioPlayer.src = `/api/audio-proxy?videoUrl=${encodeURIComponent(trackUrl)}`;
+    
+    audioPlayer.play().catch(err => {
+        statusDiv.innerHTML = `<span style="color:red">Gagal memuat lagu: ${err.message}</span>`;
+    });
 }
 
 function renderListView() {
