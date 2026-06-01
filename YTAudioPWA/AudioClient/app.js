@@ -1,4 +1,4 @@
-const BASE_API = "https://b1ea4cd88f13a8.lhr.life/"; // Sesuaikan Port Backend C# Anda
+const BASE_API = "https://b1ea4cd88f13a8.lhr.life"; // Sesuaikan Port Backend C# Anda
 
 let trackQueue = [];
 let currentIndex = -1;
