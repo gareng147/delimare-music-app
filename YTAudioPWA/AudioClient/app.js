@@ -103,14 +103,26 @@ document.getElementById('searchBtn').addEventListener('click', async () => {
 });
 
 // 3. LOGIKA INTI PEMUTARAN & AUTOPLAY REKOMENDASI PINTAR
-function playTrack(trackUrl, title) {
+// 3. LOGIKA INTI PEMUTARAN (VERSI FIX: Otomatis membaca dari antrean)
+function playTrack() {
+    // Jika antrean kosong atau index tidak valid, batalkan pemutaran
+    if (currentIndex === -1 || trackQueue.length === 0) return;
+
+    // Ambil data lagu yang sedang aktif saat ini secara otomatis
+    const currentTrack = trackQueue[currentIndex];
+    const trackUrl = currentTrack.url;
+    const title = currentTrack.title;
+
     const audioPlayer = document.getElementById('audioPlayer');
     const statusDiv = document.getElementById('status');
     
     statusDiv.innerHTML = `<strong>Memutar:</strong> ${title || 'Memuat lagu...'}`;
     
-    // Pastikan menembak ke endpoint proxy dengan parameter videoUrl
+    // Tembak ke endpoint proxy dengan parameter videoUrl dari lagu aktif
     audioPlayer.src = `/api/audio-proxy?videoUrl=${encodeURIComponent(trackUrl)}`;
+    
+    // Bonus: Jalankan fungsi highlight agar daftar lagu yang diputar menyala aktif
+    updateHighlight();
     
     audioPlayer.play().catch(err => {
         statusDiv.innerHTML = `<span style="color:red">Gagal memuat lagu: ${err.message}</span>`;
