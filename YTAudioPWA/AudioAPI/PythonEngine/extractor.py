@@ -14,13 +14,13 @@ def get_audio_url(youtube_url):
     if not video_id:
         return {"success": False, "error": "Format Link YouTube tidak dikenali"}
     
-    # STRATEGI 1: Pakai yt-dlp dengan Spoofing Client Mobile (Menyamar jadi HP Android/iOS)
+    # Strategi 1: Pakai Spoofing Client Mobile agar lolos dari blokir IP AWS Datacenter
     ydl_opts = {
         'format': 'bestaudio/best',
         'quiet': True,
         'no_warnings': True,
         'skip_download': True,
-        'extractor_args': {'youtube': {'player_client': ['android', 'ios']}} # Membuka blokir AWS IP
+        'extractor_args': {'youtube': {'player_client': ['android', 'ios']}}
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -31,10 +31,10 @@ def get_audio_url(youtube_url):
                     "title": info_dict.get('title', 'Unknown Title'),
                     "stream_url": info_dict.get('url')
                 }
-    except Exception as e:
-        pass # Jika gagal, jangan menyerah, langsung loncat ke strategi cadangan di bawah
+    except Exception:
+        pass
 
-    # STRATEGI 2: Jika diblokir total, gunakan API Invidious lintas negara sebagai cadangan
+    # Strategi 2: Fallback ke Invidious Server jika YouTube memblokir keras
     invidious_instances = [
         "https://inv.us.projectsegfau.lt",
         "https://yewtu.be",
@@ -58,7 +58,7 @@ def get_audio_url(youtube_url):
         except Exception:
             continue
             
-    return {"success": False, "error": "YouTube memblokir total akses IP Server AWS Anda."}
+    return {"success": False, "error": "Seluruh jalur ekstraksi buntu."}
 
 def get_playlist_entries(playlist_url):
     ydl_opts = {'extract_flat': 'in_playlist', 'quiet': True, 'no_warnings': True, 'skip_download': True}

@@ -14,7 +14,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 app.UseCors();
 
-// Fungsi helper untuk menjalankan proses Python (Beranda, Search, Playlist)
+// Helper utama untuk menjalankan Python (Beranda, Search, Playlist)
 Func<string, string, Task<IResult>> runPythonEngine = async (mode, url) =>
 {
     if (string.IsNullOrEmpty(url)) return Results.BadRequest(new { error = "URL kosong!" });
@@ -60,7 +60,7 @@ app.MapGet("/api/playlist", async (string url) => await runPythonEngine("playlis
 app.MapGet("/api/search", async (string q) => await runPythonEngine("search", q));
 app.MapGet("/api/home", async () => await runPythonEngine("home", "default_feed"));
 
-// Endpoint Proxy Audio (Disamakan jalurnya dengan fungsi runPythonEngine di atas)
+// Endpoint Proxy Audio (Jalurnya disamakan 100% dengan fungsi di atas agar tidak eror 400)
 app.MapGet("/api/audio-proxy", async (string videoUrl, HttpContext context) =>
 {
     try
@@ -93,18 +93,15 @@ app.MapGet("/api/audio-proxy", async (string videoUrl, HttpContext context) =>
         await process.WaitForExitAsync();
 
         var json = JsonDocument.Parse(pythonOutput);
-        
-        // JALUR DIAGNOSIS: Jika gagal, muntahkan pesan eror asli dari python ke browser!
         if (!json.RootElement.GetProperty("success").GetBoolean())
         {
-            string detailError = json.RootElement.TryGetProperty("error", out var errProp) ? errProp.GetString() : "Unknown Error";
-            return Results.BadRequest($"Detail Gagal: {detailError}");
+            return Results.BadRequest("Gagal mengekstrak audio dari YouTube");
         }
 
         string realStreamUrl = json.RootElement.GetProperty("stream_url").GetString();
 
         using var httpClient = new HttpClient();
-        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, realStreamUrl);
         if (context.Request.Headers.TryGetValue("Range", out var rangeHeader))
