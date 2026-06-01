@@ -2,6 +2,7 @@ import yt_dlp
 import sys
 import json
 import re
+import urllib.request
 
 def get_video_id(url):
     pattern = r'(?:https?://)?(?:www\.)?(?:youtube\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)|watch\?.*v=|shorts/)|youtu\.be/)([^"&?/\s]{11})'
@@ -9,24 +10,55 @@ def get_video_id(url):
     return match.group(1) if match else None
 
 def get_audio_url(youtube_url):
+    video_id = get_video_id(youtube_url)
+    if not video_id:
+        return {"success": False, "error": "Format Link YouTube tidak dikenali"}
+    
+    # STRATEGI 1: Pakai yt-dlp dengan Spoofing Client Mobile (Menyamar jadi HP Android/iOS)
     ydl_opts = {
         'format': 'bestaudio/best',
         'quiet': True,
         'no_warnings': True,
         'skip_download': True,
+        'extractor_args': {'youtube': {'player_client': ['android', 'ios']}} # Membuka blokir AWS IP
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(youtube_url, download=False)
-            return {
-                "success": True,
-                "title": info_dict.get('title', 'Unknown Title'),
-                "stream_url": info_dict.get('url'),
-                "duration": info_dict.get('duration', 0),
-                "related_videos": []
-            }
+            if info_dict and info_dict.get('url'):
+                return {
+                    "success": True,
+                    "title": info_dict.get('title', 'Unknown Title'),
+                    "stream_url": info_dict.get('url')
+                }
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        pass # Jika gagal, jangan menyerah, langsung loncat ke strategi cadangan di bawah
+
+    # STRATEGI 2: Jika diblokir total, gunakan API Invidious lintas negara sebagai cadangan
+    invidious_instances = [
+        "https://inv.us.projectsegfau.lt",
+        "https://yewtu.be",
+        "https://invidious.perennialte.ch"
+    ]
+    for instance in invidious_instances:
+        try:
+            api_url = f"{instance}/api/v1/videos/{video_id}"
+            req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode('utf-8'))
+            audio_streams = [f for f in data.get('adaptiveFormats', []) if f.get('type', '').startswith('audio/')]
+            if audio_streams:
+                stream_url = audio_streams[0].get('url')
+                if stream_url.startswith("/"): stream_url = instance + stream_url
+                return {
+                    "success": True,
+                    "title": data.get('title', 'Unknown Title'),
+                    "stream_url": stream_url
+                }
+        except Exception:
+            continue
+            
+    return {"success": False, "error": "YouTube memblokir total akses IP Server AWS Anda."}
 
 def get_playlist_entries(playlist_url):
     ydl_opts = {'extract_flat': 'in_playlist', 'quiet': True, 'no_warnings': True, 'skip_download': True}
