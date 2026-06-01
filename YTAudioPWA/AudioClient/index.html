@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delimare Music</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #121212; color: white; text-align: center; padding: 20px; margin: 0; }
+        .navbar { display: flex; justify-content: center; padding: 15px; background: #070707; margin-bottom: 20px; }
+        input { width: 60%; padding: 12px; border-radius: 25px; border: none; background: #242424; color: white; font-size: 16px; text-align: center; }
+        button { padding: 10px 25px; background: #1ed760; border: none; border-radius: 25px; cursor: pointer; font-weight: bold; color: black; margin: 5px; }
+        
+        /* Grid Desain Kartu Spotify Style */
+        .music-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; max-width: 1000px; margin: 20px auto; padding: 10px; }
+        .music-card { background: #181818; padding: 15px; border-radius: 8px; text-align: left; cursor: pointer; transition: background 0.3s; }
+        .music-card:hover { background: #282828; }
+        .music-card img { width: 100%; border-radius: 6px; aspect-ratio: 16/9; object-fit: cover; }
+        .music-card p { margin: 10px 0 0 0; font-size: 14px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Batasan List Playlist Lama */
+        .list-container { text-align: left; max-width: 650px; margin: 20px auto; background: #1c1c1c; padding: 15px; border-radius: 8px; max-height: 350px; overflow-y: auto; }
+        .track-item { padding: 12px; border-bottom: 1px solid #333; font-size: 14px; cursor: pointer; display: flex; justify-content: space-between; }
+        .track-item:hover { background: #2a2a2a; }
+        .active { color: #1ed760; font-weight: bold; }
+        
+        .player-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #181818; padding: 15px; border-top: 2px solid #282828; }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <input type="text" id="queryInput" placeholder="Cari musik, artis, atau tempel link YouTube...">
+        <button id="searchBtn">Cari</button>
+    </div>
+
+    <div id="status" style="color: #1ed760; font-weight: bold; margin-bottom: 15px;">Memuat dashboard...</div>
+
+    <!-- TAMPILAN BERANDA UTAMA (SPOTIFY CARD STYLE) -->
+    <div id="homeSection">
+        <h2 style="text-align: left; max-width: 1000px; margin: 0 auto;">Rekomendasi Terpopuler</h2>
+        <div id="homeGrid" class="music-grid"></div>
+    </div>
+
+    <!-- TAMPILAN JIKA USER MELAKUKAN SEARCH ATAU PLAYLIST -->
+    <div id="containerResult" class="list-container" style="display: none;">
+        <h3 id="listTitle" style="border-bottom: 2px solid #1ed760; padding-bottom: 5px;">Hasil Pencarian</h3>
+        <div id="listView"></div>
+    </div>
+
+    <br><br><br><br><br> <!-- Spacer agar tidak tertutup player -->
+
+    <!-- CONTROLLER BAR DI BAWAH -->
+    <div class="player-bar">
+    <div id="trackInfo" style="margin-bottom: 10px; font-size: 14px; color: #1ed760;">Pilih lagu...</div>
+    
+    <div class="controls">
+        <button id="prevBtn">⏮</button>
+        <button id="rewindBtn" title="Mundur 10 detik">⏪</button>
+        <button id="playPauseBtn">⏸</button>
+        <button id="forwardBtn" title="Maju 10 detik">⏩</button>
+        <button id="nextBtn">⏭</button>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin: 10px 0;">
+        <span id="currentTime">0:00</span>
+        <input type="range" id="seekSlider" value="0" style="width: 50%;">
+        <span id="duration">0:00</span>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <span>🔈</span>
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="1" style="width: 100px;">
+        <span>🔊</span>
+    </div>
+
+    <audio id="audioPlayer" style="display: none;"></audio>
+</div>
+
+<style>
+    /* Tambahan CSS agar slider terlihat bagus di HP */
+    /* DESAIN TOMBOL KONTROL BARU (SLEEK & MINIMALIS) */
+.controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px; /* Jarak antar tombol */
+    margin-bottom: 5px;
+}
+
+.controls button {
+    background: #282828; /* Warna tombol sekunder agak gelap */
+    color: white;
+    border: none;
+    border-radius: 50%; /* Membuat tombol bulat sempurna */
+    width: 42px;
+    height: 42px;
+    font-size: 14px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, background 0.2s;
+}
+
+/* KHUSUS TOMBOL PLAY/PAUSE (DIBUAT LEBIH BESAR & BERWARNA HIJAU) */
+#playPauseBtn {
+    background: #1ed760;
+    color: black;
+    width: 55px;
+    height: 55px;
+    font-size: 22px;
+}
+
+/* Efek saat tombol ditekan */
+.controls button:active {
+    transform: scale(0.9);
+    background: #3e3e3e;
+}
+#playPauseBtn:active {
+    background: #1aa34a;
+}
+</style>
+
+    <script src="app.js"></script>
+</body>
+</html>

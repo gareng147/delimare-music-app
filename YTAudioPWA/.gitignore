@@ -1,0 +1,14 @@
+# Mengabaikan folder hasil build C#
+**/bin/
+**/obj/
+
+# Mengabaikan Virtual Environment Python
+**/env/
+__pycache__/
+*.pyc
+
+# Mengabaikan file cookies rahasia YouTube
+**/cookies.txt
+
+# Mengabaikan file konfigurasi lokal VS Code
+.vscode/
