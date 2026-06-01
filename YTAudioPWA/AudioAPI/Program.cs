@@ -71,18 +71,27 @@ app.MapGet("/api/search", async (string q) => await runPythonEngine("search", q)
 app.MapGet("/api/home", async () => await runPythonEngine("home", "default_feed"));
 
 // Endpoint Baru: Proxy Audio untuk Menjebol IP-Lock YouTube
+// Endpoint Proxy Audio Versi Upgrade (Anti-Blokir & Mendukung Buffering/Seeking)
 app.MapGet("/api/audio-proxy", async (string url, HttpContext context) =>
 {
-    using var httpClient = new HttpClient();
+    var httpClient = new HttpClient();
     
-    // Ambil data stream langsung dari server Google menggunakan hak akses IP AWS
-    var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
-    
-    var contentType = response.Content.Headers.ContentType?.MediaType ?? "audio/mp4";
+    // 1. WAJIB: Palsukan User-Agent agar YouTube mengira ini browser manusia, bukan bot AWS
+    httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+    // 2. Operkan permintaan "Range" dari HP/Browser kamu langsung ke YouTube
+    var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+    if (context.Request.Headers.TryGetValue("Range", out var rangeHeader))
+    {
+        requestMessage.Headers.TryAddWithoutValidation("Range", rangeHeader.ToString());
+    }
+
+    var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead);
     var stream = await response.Content.ReadAsStreamAsync();
-    
-    // Salurkan langsung bytes audionya ke frontend
-    return Results.Stream(stream, contentType);
+    var contentType = response.Content.Headers.ContentType?.MediaType ?? "audio/mp4";
+
+    // 3. WAJIB: Aktifkan enableRangeProcessing agar lagu bisa di-skip/forward tanpa macet
+    return Results.Stream(stream, contentType, enableRangeProcessing: true);
 });
 
 // Ubah dari app.Run(); menjadi seperti ini:
