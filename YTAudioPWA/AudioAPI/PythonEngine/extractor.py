@@ -18,6 +18,7 @@ def get_audio_url(youtube_url):
         'quiet': True,
         'no_warnings': True,
         'skip_download': True,
+        'cachedir': False, # MATIKAN CACHE AGAR TIDAK EROR PERMISSION DOCKER
         'extractor_args': {'youtube': {'player_client': ['android', 'ios']}}
     }
     

@@ -18,13 +18,14 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-
 RUN mkdir -p PythonEngine
 COPY PythonEngine/extractor.py ./PythonEngine/
-
 COPY PythonEngine/cookies.txt ./PythonEngine/
 
 RUN python3 -m venv PythonEngine/env
 RUN ./PythonEngine/env/bin/pip install yt-dlp
+
+# BUKA GEMBOK AKSES FOLDER SECARA PERMANEN
+RUN chmod -R 777 /app/PythonEngine
 
 ENTRYPOINT ["dotnet", "AudioAPI.dll"]

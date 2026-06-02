@@ -93,12 +93,15 @@ app.MapGet("/api/audio-proxy", async (string videoUrl, HttpContext context) =>
         await process.WaitForExitAsync();
 
         var json = JsonDocument.Parse(pythonOutput);
+        
+        // TAMPILKAN DETAIL EROR ASLI DARI PYTHON!
         if (!json.RootElement.GetProperty("success").GetBoolean())
         {
-            return Results.BadRequest("Gagal mengekstrak audio dari YouTube");
+            string? detailError = json.RootElement.TryGetProperty("error", out var errProp) ? errProp.GetString() : "Unknown Error";
+            return Results.BadRequest($"Gagal mengekstrak: {detailError}");
         }
 
-        string realStreamUrl = json.RootElement.GetProperty("stream_url").GetString();
+        string realStreamUrl = json.RootElement.GetProperty("stream_url").GetString()!;
 
         using var httpClient = new HttpClient();
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
