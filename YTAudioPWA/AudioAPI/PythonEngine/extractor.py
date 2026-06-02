@@ -2,7 +2,7 @@ import yt_dlp
 import sys
 import json
 import re
-import urllib.request
+import os
 
 def get_video_id(url):
     pattern = r'(?:https?://)?(?:www\.)?(?:youtube\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)|watch\?.*v=|shorts/)|youtu\.be/)([^"&?/\s]{11})'
@@ -10,11 +10,9 @@ def get_video_id(url):
     return match.group(1) if match else None
 
 def get_audio_url(youtube_url):
-    video_id = get_video_id(youtube_url)
-    if not video_id:
-        return {"success": False, "error": "Format Link YouTube tidak dikenali"}
+    # Mengarah langsung ke file cookies di dalam Docker
+    cookie_path = '/app/PythonEngine/cookies.txt'
     
-    # Strategi 1: Pakai Spoofing Client Mobile agar lolos dari blokir IP AWS Datacenter
     ydl_opts = {
         'format': 'bestaudio/best',
         'quiet': True,
@@ -22,43 +20,21 @@ def get_audio_url(youtube_url):
         'skip_download': True,
         'extractor_args': {'youtube': {'player_client': ['android', 'ios']}}
     }
+    
+    # Jika file cookies ditemukan, gunakan file tersebut!
+    if os.path.exists(cookie_path):
+        ydl_opts['cookiefile'] = cookie_path
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(youtube_url, download=False)
-            if info_dict and info_dict.get('url'):
-                return {
-                    "success": True,
-                    "title": info_dict.get('title', 'Unknown Title'),
-                    "stream_url": info_dict.get('url')
-                }
-    except Exception:
-        pass
-
-    # Strategi 2: Fallback ke Invidious Server jika YouTube memblokir keras
-    invidious_instances = [
-        "https://inv.us.projectsegfau.lt",
-        "https://yewtu.be",
-        "https://invidious.perennialte.ch"
-    ]
-    for instance in invidious_instances:
-        try:
-            api_url = f"{instance}/api/v1/videos/{video_id}"
-            req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=5) as response:
-                data = json.loads(response.read().decode('utf-8'))
-            audio_streams = [f for f in data.get('adaptiveFormats', []) if f.get('type', '').startswith('audio/')]
-            if audio_streams:
-                stream_url = audio_streams[0].get('url')
-                if stream_url.startswith("/"): stream_url = instance + stream_url
-                return {
-                    "success": True,
-                    "title": data.get('title', 'Unknown Title'),
-                    "stream_url": stream_url
-                }
-        except Exception:
-            continue
-            
-    return {"success": False, "error": "Seluruh jalur ekstraksi buntu."}
+            return {
+                "success": True,
+                "title": info_dict.get('title', 'Unknown Title'),
+                "stream_url": info_dict.get('url')
+            }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 def get_playlist_entries(playlist_url):
     ydl_opts = {'extract_flat': 'in_playlist', 'quiet': True, 'no_warnings': True, 'skip_download': True}
