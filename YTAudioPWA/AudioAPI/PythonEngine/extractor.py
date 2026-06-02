@@ -10,7 +10,6 @@ def get_video_id(url):
     return match.group(1) if match else None
 
 def get_audio_url(youtube_url):
-    # Mengarah langsung ke file cookies di dalam Docker
     cookie_path = '/app/PythonEngine/cookies.txt'
     
     ydl_opts = {
@@ -18,11 +17,9 @@ def get_audio_url(youtube_url):
         'quiet': True,
         'no_warnings': True,
         'skip_download': True,
-        'cachedir': False, # MATIKAN CACHE AGAR TIDAK EROR PERMISSION DOCKER
-        'extractor_args': {'youtube': {'player_client': ['android', 'ios']}}
+        'cachedir': False
     }
     
-    # Jika file cookies ditemukan, gunakan file tersebut!
     if os.path.exists(cookie_path):
         ydl_opts['cookiefile'] = cookie_path
 
@@ -36,7 +33,7 @@ def get_audio_url(youtube_url):
             }
     except Exception as e:
         return {"success": False, "error": str(e)}
-
+    
 def get_playlist_entries(playlist_url):
     ydl_opts = {'extract_flat': 'in_playlist', 'quiet': True, 'no_warnings': True, 'skip_download': True}
     try:
